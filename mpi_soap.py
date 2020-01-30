@@ -1,17 +1,22 @@
 import sys
-from mpi4py import MPI
-import numpy as np
 import time
-from helper import read, split_by_lengths, return_borders
-from dscribe.descriptors import SOAP
-from dscribe.kernels import AverageKernel, REMatchKernel
-from sklearn.preprocessing import normalize
+
+from mpi4py import MPI
+
+import numpy as np
 import scipy
+
+from helper import read, split_by_lengths, return_borders
+
+from dscribe.descriptors import SOAP
+from dscribe.kernels import REMatchKernel
+
+from sklearn.preprocessing import normalize
 
 data_name = sys.argv[1]
 k_name = sys.argv[2]
 
-mols, num_list, atom_list, species = read(data_name+".xyz")
+mols, num_list, atom_list, species = read('data/'+data_name+".xyz")
 
 dat_size = len(mols)
 
@@ -54,28 +59,24 @@ t0 = time.time()
 my_border_low, my_border_high = return_borders(mpi_rank, dat_size, mpi_size)
 
 my_mols = mols[my_border_low:my_border_high]
-soap = scipy.sparse.hstack([smol_soap.create(my_mols),thicc_soap.create(my_mols)])
+soap = scipy.sparse.hstack([small_soap.create(my_mols),large_soap.create(my_mols)])
 
 t1 = time.time()
 if mpi_rank==0:
    print("SOAP: {:.2f}s\n".format(t1-t0))
    print("rcut_small = {:.1f}, sigma_small = {:.1f}, rcut_large = {:.1f}, sigma_large = {:.1f}".format(rcut_small,sigma_small,rcut_large,sigma_large))
-   #print("Descriptor Size: {}".format(soap.shape))
-   #print("SOAP memory usage (bytes): {}\n".format(soap.data.nbytes+soap.indptr.nbytes+soap.indices.nbytes))
 
 soap = normalize(soap, copy=False)
 
 my_soap =  split_by_lengths(soap, num_list[my_border_low:my_border_high])
 
-#my_soap = soap[my_border_low:my_border_high]
 my_len = len(my_soap)
 
 t2 = time.time()
 if mpi_rank==0:
    print ("Normalise & Split Descriptors: {:.2f}s\n".format(t2-t1))
 
-#re = REMatchKernel(metric="polynomial", degree=3, gamma=1, coef0=0, alpha=0.5, threshold=1e-6, normalize_kernel=True)
-re = AverageKernel(metric='polynomial',degree=3,gamma=1)
+re = REMatchKernel(metric="polynomial", degree=3, gamma=1, coef0=0, alpha=0.5, threshold=1e-6, normalize_kernel=True)
 
 K = np.zeros((my_len, dat_size), dtype=np.float32)
 sendcounts = np.array(mpi_comm.gather(my_len*dat_size,root=0))
@@ -86,6 +87,7 @@ if mpi_rank==0:
 else:
    K_full = None
 
+#row-parallelised kernel computation
 for index in range(0, mpi_size):
     if index==mpi_rank: 
        K[:, my_border_low:my_border_high] += re.create(my_soap).astype(np.float32)
@@ -97,8 +99,8 @@ for index in range(0, mpi_size):
     ref_soap = normalize(ref_soap, copy=False)
     ref_soap = split_by_lengths(ref_soap, num_list[start:end])
     K[:, start:end] += re.create(my_soap, ref_soap).astype(np.float32)
-    #K[start:end, my_border_low:my_border_high] += re_kernel.T
 
+#Gather kernel rows
 mpi_comm.Gatherv(sendbuf=K,recvbuf = (K_full, sendcounts),root=0)
 
 K = K_full
@@ -106,7 +108,9 @@ K = K_full
 if mpi_rank==0:
     t3 = time.time()
     print ("Normalised Kernel: {:.2f}s\n".format(t3-t2))
-    np.save('/rds-d2/user/wjm41/hpc-work/kernels/dscribe/'+data_name+'_'+k_name+'_kernel_rematch.npy', K)
+
+    #Change directory name if you have memory constraints
+    np.save('kernels/'+data_name+'_'+k_name+'_kernel_rematch.npy', K) 
     print(K)
 
 mpi_comm.Barrier()

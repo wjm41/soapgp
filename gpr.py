@@ -5,7 +5,6 @@ import sys
 import pandas as pd
 import gpflow
 import tensorflow as tf
-import tensorflow_probability as tfp
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.preprocessing import StandardScaler
