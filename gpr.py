@@ -18,7 +18,7 @@ if data_name=='Malaria':
 	ran_state_list=[6]
 else:
 	ran_state_list = range(4,7)
-rem_mat = np.load('/rds-d2/user/wjm41/hpc-work/kernels/dscribe/'+data_name+'_'+method_name+'_kernel_rematch.npy')
+rem_mat = np.load('kernels/'+data_name+'_'+method_name+'_kernel.npy')
 
 print('Analysing '+data_name+' dataset with SOAP-GP...')
 
