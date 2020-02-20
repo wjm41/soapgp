@@ -1,11 +1,14 @@
 import random
 from collections import defaultdict
+
+from tqdm import tqdm
 import numpy as np 
 from rdkit import Chem
 from ase.atoms import Atoms
 from itertools import islice
 from rdkit.Chem.Scaffolds import MurckoScaffold
-from tqdm import tqdm
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 from typing import Dict, List, Set, Tuple, Union
 
 
@@ -104,7 +107,7 @@ class ConfigASE(object):
         self.positions = np.array(self.positions)
         return
 
-def read(config_file,
+def read_xyz(config_file,
             index=':'):
         species={'C'}
         atom_list = []
@@ -128,6 +131,77 @@ def read(config_file,
                 mol_list.append(mol)
             else: break
         return mol_list, num_list, atom_list, species
+
+def parse_dataset(task_name, path, use_fragments=True, subset_size=1000):
+    """
+    Returns list of molecular smiles, as well as the y-targets of the dataset
+    :param task_name: name of the task
+    :param path: dataset path
+    :param use_fragments: If True return fragments instead of SMILES
+    :param subset_size: Subset size for big datasets like CEP or QM9
+    :return: x, y where x can be SMILES or fragments and y is the label.
+    """
+
+    smiles_list = []
+    y = None
+
+    if task_name == 'FreeSolv':
+        df = pd.read_csv(path)
+        smiles_list = df['smiles'].tolist()
+        y = df['expt'].to_numpy()  # can change to df['calc'] for calculated values
+
+    elif task_name == 'ESOL':
+        df = pd.read_csv(path)
+        smiles_list = df['smiles'].tolist()
+        y = df['measured log solubility in mols per litre'].to_numpy()
+
+    elif task_name == 'lipo':
+        df = pd.read_csv(path)
+        smiles_list = df['smiles'].tolist()
+        y = df['exp'].to_numpy()
+
+    elif task_name == 'CatS':
+        df = pd.read_csv(path, usecols=[0, 1], header=None, names=['smiles','y'])
+        smiles_list = df['smiles'].tolist()
+        y = df['y'].to_numpy()
+
+    elif task_name == 'DLS':
+        df = pd.read_csv(path)
+        smiles_list = df['SMILES'].tolist()
+        y = df['LogS exp (mol/L)'].to_numpy()
+
+    elif task_name == 'bradley':
+
+        df = pd.read_csv(path)
+        smiles_list = df['SMILES'].tolist()
+        rdkit_mols = [MolFromSmiles(smiles) for smiles in smiles_list]
+        good_inds = []
+        good_mols = []
+
+        # There are 3025/3042 molecules that can be parsed by RDKit. 3025 is the dataset size commonly reported in the
+        # literature cf. the paper:
+        # "Bayesian semi-supervised learning for uncertainty-calibrated prediction of molecular properties and
+        # active learning"
+
+        for ind, mol in enumerate(rdkit_mols):
+            if mol != None:
+                good_inds.append(ind)
+                good_mols.append(mol)
+        df = df.iloc[good_inds]
+        smiles_list = df['SMILES'].tolist()
+        y = df['Melting Point {measured}'].to_numpy()
+
+    elif task_name == 'Malaria':
+        df = pd.read_csv(path, header=0)
+        pred_val = 'XC50_3D7 (microM)'
+        df = df[((df[pred_val] != 'ND') & (df[pred_val] != '<')) & (df[pred_val].notnull())]
+        smiles_list = df['smiles'].tolist()
+        y = df[pred_val].to_numpy()
+        y = np.log10(y)
+
+    else:
+        raise Exception('Must provide valid dataset')
+    return smiles_list, y.reshape(-1,1)
 
 def split_by_lengths(seq, num):
     out_list = []
@@ -239,3 +313,29 @@ def scaffold_split(data: List[str],
     #print(test)
     return train, test
 
+def transform_data(X_train, y_train, X_test, y_test, n_components=None, quiet=False):
+    """ 
+    Apply feature scaling, dimensionality reduction to the data. Return the standardised and low-dimensional train and
+    test sets together with the scaler object for the target values.
+
+    :param X_train: input train data
+    :param y_train: train labels
+    :param X_test: input test data
+    :param y_test: test labels
+    :param n_components: number of principal components to keep
+    :return: X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled, y_scaler
+    """
+
+    x_scaler = StandardScaler()
+    X_train_scaled = x_scaler.fit_transform(X_train)
+    X_test_scaled = x_scaler.transform(X_test)
+    y_scaler = StandardScaler()
+    y_train_scaled = y_scaler.fit_transform(y_train.reshape(-1, 1)) 
+    y_test_scaled = y_scaler.transform(y_test.reshape(-1, 1)) 
+    if n_components!=None:
+       pca = PCA(n_components)
+       X_train_scaled = pca.fit_transform(X_train_scaled)
+       if quiet==False:
+          print('\nFraction of variance retained is: ' + str(sum(pca.explained_variance_ratio_)))
+       X_test_scaled = pca.transform(X_test_scaled)
+    return X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled, y_scaler
