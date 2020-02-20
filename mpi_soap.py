@@ -6,7 +6,7 @@ from mpi4py import MPI
 import numpy as np
 import scipy
 
-from helper import read, split_by_lengths, return_borders
+from helper import read_xyz, split_by_lengths, return_borders
 
 from dscribe.descriptors import SOAP
 from dscribe.kernels import REMatchKernel
@@ -14,9 +14,8 @@ from dscribe.kernels import REMatchKernel
 from sklearn.preprocessing import normalize
 
 data_name = sys.argv[1]
-k_name = sys.argv[2]
 
-mols, num_list, atom_list, species = read('data/'+data_name+".xyz")
+mols, num_list, atom_list, species = read_xyz('data/'+data_name+"/"+data_name+".xyz")
 
 dat_size = len(mols)
 
@@ -110,7 +109,7 @@ if mpi_rank==0:
     print ("Normalised Kernel: {:.2f}s\n".format(t3-t2))
 
     #Change directory name if you have memory constraints
-    np.save('kernels/'+data_name+'_'+k_name+'_kernel', K) 
+    np.save('kernels/'+data_name+'_kernel', K) 
     print(K)
 
 mpi_comm.Barrier()

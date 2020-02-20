@@ -3,6 +3,7 @@ from collections import defaultdict
 
 from tqdm import tqdm
 import numpy as np 
+import pandas as pd
 from rdkit import Chem
 from ase.atoms import Atoms
 from itertools import islice
@@ -201,7 +202,7 @@ def parse_dataset(task_name, path, use_fragments=True, subset_size=1000):
 
     else:
         raise Exception('Must provide valid dataset')
-    return smiles_list, y.reshape(-1,1)
+    return smiles_list, y
 
 def split_by_lengths(seq, num):
     out_list = []
@@ -313,7 +314,7 @@ def scaffold_split(data: List[str],
     #print(test)
     return train, test
 
-def transform_data(X_train, y_train, X_test, y_test, n_components=None, quiet=False):
+def transform_data(y_train, y_test):
     """ 
     Apply feature scaling, dimensionality reduction to the data. Return the standardised and low-dimensional train and
     test sets together with the scaler object for the target values.
@@ -326,16 +327,7 @@ def transform_data(X_train, y_train, X_test, y_test, n_components=None, quiet=Fa
     :return: X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled, y_scaler
     """
 
-    x_scaler = StandardScaler()
-    X_train_scaled = x_scaler.fit_transform(X_train)
-    X_test_scaled = x_scaler.transform(X_test)
     y_scaler = StandardScaler()
     y_train_scaled = y_scaler.fit_transform(y_train.reshape(-1, 1)) 
     y_test_scaled = y_scaler.transform(y_test.reshape(-1, 1)) 
-    if n_components!=None:
-       pca = PCA(n_components)
-       X_train_scaled = pca.fit_transform(X_train_scaled)
-       if quiet==False:
-          print('\nFraction of variance retained is: ' + str(sum(pca.explained_variance_ratio_)))
-       X_test_scaled = pca.transform(X_test_scaled)
-    return X_train_scaled, y_train_scaled, X_test_scaled, y_test_scaled, y_scaler
+    return y_train_scaled, y_test_scaled, y_scaler
