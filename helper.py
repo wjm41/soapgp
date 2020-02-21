@@ -1,12 +1,12 @@
 import random
 from collections import defaultdict
 
-from tqdm import tqdm
 import numpy as np 
 import pandas as pd
 from rdkit import Chem
 from ase.atoms import Atoms
 from itertools import islice
+from rdkit.Chem import MolFromSmiles
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -151,7 +151,7 @@ def parse_dataset(task_name, path, use_fragments=True, subset_size=1000):
         smiles_list = df['smiles'].tolist()
         y = df['expt'].to_numpy()  # can change to df['calc'] for calculated values
 
-    elif task_name == 'ESOL':
+    elif task_name == 'esol':
         df = pd.read_csv(path)
         smiles_list = df['smiles'].tolist()
         y = df['measured log solubility in mols per litre'].to_numpy()
@@ -166,7 +166,7 @@ def parse_dataset(task_name, path, use_fragments=True, subset_size=1000):
         smiles_list = df['smiles'].tolist()
         y = df['y'].to_numpy()
 
-    elif task_name == 'DLS':
+    elif task_name == 'dls':
         df = pd.read_csv(path)
         smiles_list = df['SMILES'].tolist()
         y = df['LogS exp (mol/L)'].to_numpy()
@@ -243,7 +243,7 @@ def scaffold_to_smiles(mols: Union[List[str], List[Chem.Mol]],
     :return: A dictionary mapping each unique scaffold to all smiles (or smiles indices) which have that scaffold.
     """
     scaffolds = defaultdict(set)
-    for i, mol in tqdm(enumerate(mols), total=len(mols)):
+    for i, mol in enumerate(mols):
         scaffold = generate_scaffold(mol)
         if use_indices:
             scaffolds[scaffold].add(i)
@@ -254,7 +254,7 @@ def scaffold_to_smiles(mols: Union[List[str], List[Chem.Mol]],
 
 def scaffold_split(data: List[str],
                    sizes: Tuple[float, float] = (0.8, 0.2),
-                   balanced: bool = False,
+                   balanced: bool = True,
                    seed: int = 0):
     """
     Split a dataset by scaffold so that no molecules sharing a scaffold are in the same split.

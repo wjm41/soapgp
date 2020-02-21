@@ -109,7 +109,7 @@ if mpi_rank==0:
     print ("Normalised Kernel: {:.2f}s\n".format(t3-t2))
 
     #Change directory name if you have memory constraints
-    np.save('kernels/'+data_name+'_kernel', K) 
+    np.save('kernels/'+data_name+'_soap', K) 
     print(K)
 
 mpi_comm.Barrier()

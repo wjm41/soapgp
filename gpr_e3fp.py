@@ -23,26 +23,20 @@ FREESOLV_PATH = 'data/FreeSolv/FreeSolv.csv'
 CATS_PATH = 'data/CatS/CatS.csv'
 LIPO_PATH = 'data/lipo/lipo.csv'
 ESOL_PATH = 'data/esol/esol.csv'
-DLS_PATH = 'data/DLS/DLS-100.csv'
+DLS_PATH = 'data/dls/dls.csv'
 BRADLEY_PATH = 'data/bradley/bradley.csv'
 MALARIA_PATH = 'data/Malaria/Malaria.csv'
 
-PATHS = {'FreeSolv': FREESOLV_PATH, 'esol': ESOL_PATH, 'lipo': LIPO_PATH, 'DLS': DLS_PATH, 'CatS':CATS_PATH, 'bradley':BRADLEY_PATH, 'Malaria':MALARIA_PATH}
+PATHS = {'FreeSolv': FREESOLV_PATH, 'esol': ESOL_PATH, 'lipo': LIPO_PATH, 'dls': DLS_PATH, 'CatS':CATS_PATH, 'bradley':BRADLEY_PATH, 'Malaria':MALARIA_PATH}
 
 TASK_NAME = 'FreeSolv'  # Change dataset. Options: ['ESOL', 'FreeSolv', 'QM9', 'CEP', 'CatS', 'Melt', 'Malaria']
-
-
-rem_mat=None
-rem_diag=None
-max_rem=None
-
 
 def main(task, split, n_runs, n_fold):
     global rem_mat, rem_diag, max_rem
 
     warnings.filterwarnings('ignore')
 
-    print('\nTraining SOAP-GP on '+task+' dataset')
+    print('\nTraining E3FP-GP on '+task+' dataset')
     print('\nGenerating features...')
 
     if task in PATHS:
@@ -51,10 +45,9 @@ def main(task, split, n_runs, n_fold):
     else:
         raise Exception('Must provide dataset')
     
-    rem_mat = np.load('kernels/'+task+'_kernel.npy')
+    rem_mat = np.load('kernels/'+task+'_e3fp.npy')
     #rem_mat = np.load('/rds-d2/user/wjm41/hpc-work/kernels/'+data_name+'_'+method_name+'_kernel_rematch.npy')
 
-    max_rem = rem_mat.max()
     rem_diag = tf.constant(np.diag(rem_mat),dtype=tf.float64)
     rem_mat = tf.constant(rem_mat,dtype=tf.float64)
 
@@ -75,7 +68,7 @@ def main(task, split, n_runs, n_fold):
                     A2 = tf.cast(A2,tf.int32)
                     K_mat = tf.gather(rem_mat, A, axis=0)
                     K_mat = tf.gather(K_mat, A2, axis=1)
-                    z = tf.math.sqrt(6*(max_rem-K_mat))*self.var
+                    z = tf.math.sqrt(3*K_mat)*self.var
                     K_final = self.mag*(1+z)*tf.math.exp(-z)
                     return K_final
     
@@ -83,7 +76,7 @@ def main(task, split, n_runs, n_fold):
                     global rem_diag
                     A=tf.cast(X,tf.int32)
                     K_diag = tf.gather_nd(rem_diag, A)
-                    z = tf.math.sqrt(6*(max_rem-K_diag))*self.var
+                    z = tf.math.sqrt(3*K_diag)*self.var
                     return self.mag*(1+z)*tf.math.exp(-z)
     m = None
 
@@ -102,7 +95,7 @@ def main(task, split, n_runs, n_fold):
            split_list = kf.split(X)
         elif split=='scaffold':
             train_ind, test_ind = scaffold_split(smiles_list, seed=i)
-            split_list = [train_ind, test_ind]
+            split_list = [(train_ind, test_ind)]
         for train_ind, test_ind in split_list:
             X_train, X_test = X[train_ind], X[test_ind]
             y_train, y_test = y[train_ind], y[test_ind]
@@ -138,9 +131,10 @@ def main(task, split, n_runs, n_fold):
             rmse_list.append(rmse)
             logP_list.append(logP)
         
-            np.savetxt('results/'+task+'_split_'+split+'_run_'+str(j)+'_ypred.txt', y_pred)
-            np.savetxt('results/'+task+'_split_'+split+'_run_'+str(j)+'_ytest.txt', y_test)
-            np.savetxt('results/'+task+'_split_'+split+'_run_'+str(j)+'_ystd.txt', np.sqrt(y_var))
+            np.savetxt('results/e3fp_'+task+'_split_'+split+'_run_'+str(j)+'_ypred.txt', y_pred)
+            np.savetxt('results/e3fp_'+task+'_split_'+split+'_run_'+str(j)+'_ytest.txt', y_test)
+            np.savetxt('results/e3fp_'+task+'_split_'+split+'_run_'+str(j)+'_ystd.txt', np.sqrt(y_var))
+            j+=1
 
     r2_list = np.array(r2_list)
     rmse_list = np.array(rmse_list)
