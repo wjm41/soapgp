@@ -177,7 +177,6 @@ def parse_dataset(task_name, path, use_fragments=True, subset_size=1000):
         smiles_list = df['SMILES'].tolist()
         rdkit_mols = [MolFromSmiles(smiles) for smiles in smiles_list]
         good_inds = []
-        good_mols = []
 
         # There are 3025/3042 molecules that can be parsed by RDKit. 3025 is the dataset size commonly reported in the
         # literature cf. the paper:
@@ -187,17 +186,16 @@ def parse_dataset(task_name, path, use_fragments=True, subset_size=1000):
         for ind, mol in enumerate(rdkit_mols):
             if mol != None:
                 good_inds.append(ind)
-                good_mols.append(mol)
         df = df.iloc[good_inds]
         smiles_list = df['SMILES'].tolist()
-        y = df['Melting Point {measured}'].to_numpy()
+        y = df['Melting Point {measured, converted}'].to_numpy()
 
     elif task_name == 'Malaria':
         df = pd.read_csv(path, header=0)
         pred_val = 'XC50_3D7 (microM)'
         df = df[((df[pred_val] != 'ND') & (df[pred_val] != '<')) & (df[pred_val].notnull())]
-        smiles_list = df['smiles'].tolist()
-        y = df[pred_val].to_numpy()
+        smiles_list = df['SMILES'].tolist()
+        y = df[pred_val].astype('float').to_numpy()
         y = np.log10(y)
 
     else:
