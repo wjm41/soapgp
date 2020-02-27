@@ -77,7 +77,7 @@ def main(task, split, n_runs, n_fold, n_bits):
                     X_test = tf.convert_to_tensor(X_test, dtype = tf.float64)        
         
                     #rem_mat = np.load('kernels/'+task+'_ecfp_'+str(bits)+'.npy')
-                    rem_mat = np.load('/rds-d2/user/wjm41/hpc-work/kernels/e3fp/'+task+'_'+str(bits)+'.npy')
+                    rem_mat = np.load('/rds-d2/user/wjm41/hpc-work/kernels/e3fp/'+task+'_e3fp.npy')
                 
                     rem_diag = tf.constant(np.diag(rem_mat),dtype=tf.float64)
                     rem_mat = tf.constant(rem_mat,dtype=tf.float64)
