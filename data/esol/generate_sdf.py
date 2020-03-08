@@ -3,7 +3,6 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from concurrent import futures
 import numpy as np
-import progressbar
 import sys
 
 max_workers=32
@@ -42,9 +41,6 @@ with futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
             job = executor.submit(generateconformations, mol)
             jobs.append(job)
 
-    widgets = ["Generating conformations; ", progressbar.Percentage(), " ",
-               progressbar.ETA(), " ", progressbar.Bar()]
-    pbar = progressbar.ProgressBar(widgets=widgets, maxval=len(jobs))
 
     # Process the job results (in submission order) and save the conformers.
     for job in jobs:

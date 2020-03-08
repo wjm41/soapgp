@@ -2,7 +2,7 @@ import pandas as pd
 import sys
 
 smiles_name = sys.argv[1]+'.can'
-xyz_name = sys.argv[1]+'_multi.xyz'
+xyz_name = sys.argv[1]+'.xyz'
 n_confs = int(sys.argv[2])
 
 SMILES_df = pd.read_csv(smiles_name, header=None, names=['smiles','num'], delim_whitespace=True)
