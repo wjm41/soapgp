@@ -6,18 +6,18 @@ from rdkit.Chem import MolFromSmiles, AllChem
 from e3fp.fingerprint.metrics.array_metrics import tanimoto
 
 from helper import split_by_lengths, return_borders, parse_dataset
-from utils_e3fp import gen_e3fp_features
 
-# Adjust accordingly for your own file system
-FREESOLV_PATH = 'data/FreeSolv/FreeSolv.csv'
-CATS_PATH = 'data/CatS/CatS.csv'
-LIPO_PATH = 'data/lipo/lipo.csv'
-ESOL_PATH = 'data/esol/esol.csv'
-DLS_PATH = 'data/dls/dls.csv'
-BRADLEY_PATH = 'data/bradley/bradley.csv'
-MALARIA_PATH = 'data/Malaria/Malaria.csv'
+FREESOLV_PATH = '../data/FreeSolv/FreeSolv.csv'
+CATS_PATH = '../data/CatS/CatS.csv'
+LIPO_PATH = '../data/lipo/lipo.csv'
+ESOL_PATH = '../data/esol/esol.csv'
+DLS_PATH = '../data/DLS/DLS-100.csv'
+BRADLEY_PATH = '../data/bradley/bradley.csv'
+MALARIA_PATH = '../data/Malaria/Malaria.csv'
+CHEMBL5118_PATH = '../data/CHEMBL5118.csv'
+CHEMBL3927_PATH = '../data/CHEMBL3927.csv'
 
-PATHS = {'FreeSolv': FREESOLV_PATH, 'esol': ESOL_PATH, 'lipo': LIPO_PATH, 'dls': DLS_PATH, 'CatS':CATS_PATH, 'bradley':BRADLEY_PATH, 'Malaria':MALARIA_PATH}
+PATHS = {'FreeSolv': FREESOLV_PATH, 'esol': ESOL_PATH, 'lipo': LIPO_PATH, 'DLS': DLS_PATH, 'CatS':CATS_PATH, 'bradley':BRADLEY_PATH, 'Malaria':MALARIA_PATH, 'CHEMBL5118': CHEMBL5118_PATH, 'CHEMBL3927' : CHEMBL3927_PATH}
 
 task = sys.argv[1]
 #bits = int(sys.argv[2])
@@ -35,7 +35,7 @@ my_border_low, my_border_high = return_borders(mpi_rank, dat_size, mpi_size)
 
 my_list = smiles_list[my_border_low:my_border_high]
 
-bit_list = [512,1024,2048,4096,8192]
+bit_list = [2048]
 for bits in bit_list:        
     my_mols = [MolFromSmiles(smiles) for smiles in my_list]
     X = [AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=bits) for mol in my_mols]
@@ -53,8 +53,7 @@ for bits in bit_list:
        kernel = 1-tanimoto(X,X)
        print(kernel)
        print(kernel.shape)
-       #np.save('kernels/'+task+'_ecfp_'+str(bits)+'.npy',kernel)
-       np.save('/rds-d2/user/wjm41/hpc-work/kernel/ecfp/'+task+'_'+str(bits)+'.npy',kernel)
+       np.save('../kernels/'+task+'_ecfp_'+str(bits)+'.npy',kernel)
     
     mpi_comm.Barrier()
 MPI.Finalize()

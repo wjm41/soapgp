@@ -8,18 +8,54 @@ import scipy
 
 from helper import read_xyz, split_by_lengths, return_borders
 
-from dscribe.descriptors import SOAP
-from dscribe.kernels import REMatchKernel
+from rdkit import Chem
 
 from sklearn.preprocessing import normalize
 
 data_name = sys.argv[1]
 
-mols, num_list, atom_list, species = read_xyz('data/'+data_name+".xyz")
-#mols, num_list, atom_list, species = read_xyz('data/'+data_name+"/"+data_name+".xyz")
-for mol in mols:
-    print(mol)
+def onek_encoding_unk(value: int, choices: List[int]) -> List[int]:
+    """
+    Creates a one-hot encoding.
+    :param value: The value for which the encoding should be one.
+    :param choices: A list of possible values.
+    :return: A one-hot encoding of the value in a list of length len(choices) + 1.
+    If value is not in the list of choices, then the final element in the encoding is 1.
+    """
+    encoding = [0] * (len(choices) + 1)
+    index = choices.index(value) if value in choices else -1
+    encoding[index] = 1
 
+    return encoding
+
+
+def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
+    """
+    Builds a feature vector for an atom.
+    :param atom: An RDKit atom.
+    :param functional_groups: A k-hot vector indicating the functional groups the atom belongs to.
+    :return: A PyTorch tensor containing the atom features.
+    """
+    features = onek_encoding_unk(atom.GetAtomicNum() - 1, ATOM_FEATURES['atomic_num']) + \
+           onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
+           onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
+           onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag']) + \
+           onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
+           onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
+           [1 if atom.GetIsAromatic() else 0] + \
+           [atom.GetMass() * 0.01]  # scaled to about the same range as other features
+    if functional_groups is not None:
+        features += functional_groups
+    return features
+
+# pd read .can
+mol_list = []
+
+mol = Chem.MolFromSmiles(smiles)
+atom_list = []
+for atom in mol.GetAtoms():
+    atom_list.append(atom_features(atom))
+mol_list.append(atom_list)
 dat_size = len(mols)
 
 mpi_comm = MPI.COMM_WORLD
@@ -31,31 +67,6 @@ if mpi_rank==0:
     print('No. of molecules = {}\n'.format(dat_size))
     print('Elements present = {}\n'.format(species))
 
-# Setting up the SOAP descriptor
-rcut_small = 3.0
-sigma_small = 0.2
-rcut_large = 6.0
-sigma_large = 0.4
-
-small_soap = SOAP(
-    species=species,
-    periodic=False,
-    rcut=rcut_small,
-    nmax=12,
-    lmax=8,
-    sigma = sigma_small,
-    sparse=True
-)
-
-large_soap = SOAP(
-    species=species,
-    periodic=False,
-    rcut=rcut_large,
-    nmax=12,
-    lmax=8,
-    sigma = sigma_large,
-    sparse=True
-)
 
 t0 = time.time()
 my_border_low, my_border_high = return_borders(mpi_rank, dat_size, mpi_size)

@@ -217,32 +217,18 @@ def parse_dataset(task_name, path, use_fragments=True, subset_size=1000):
 
     elif task_name == 'CHEMBL5118':
         df = pd.read_csv(path, delimiter=';',header=0)
-        df = df[(df['Standard Relation']=="'='" ) & (df['Data Validity Comment']!='Outside typical range')]
+        df = df[df['Standard Relation']=="'='"]
         smiles_list = df['Smiles'].tolist()
-        y = df['pChEMBL Value'].to_numpy()
-        y = [ 1 if i > 5 else 0 for i in y]
-        y = np.array(y).reshape(-1,1)   
+        y = df['Standard Value'].to_numpy()
+        y = np.log10(y)
     elif task_name == 'CHEMBL3927':
         df = pd.read_csv(path, delimiter=';',header=0)
-        df = df[(df['Standard Relation']=="'='" ) & (df['Data Validity Comment']!='Outside typical range')]
+        df = df[df['Standard Relation']=="'='"]
         smiles_list = df['Smiles'].tolist()
-        y = df['pChEMBL Value'].to_numpy()
-        y = [ 1 if i > 5 else 0 for i in y]
-        y = np.array(y).reshape(-1,1)   
-    elif task_name == 'CHEMBL5118_typical':
-        df = pd.read_csv(path, delimiter=';',header=0)
-        df = df[(df['Standard Relation']=="'='") & (df['Data Validity Comment']!='Outside typical range')]
-        smiles_list = df['Smiles'].tolist()
-        y = df['pChEMBL Value'].to_numpy()
-        
-    elif task_name == 'CHEMBL3927_typical':
-        df = pd.read_csv(path, delimiter=';',header=0)
-        df = df[(df['Standard Relation']=="'='" ) & (df['Data Validity Comment']!='Outside typical range')]
-        smiles_list = df['Smiles'].tolist()
-        y = df['pChEMBL Value'].to_numpy()
+        y = df['Standard Value'].to_numpy()
+        y = np.log10(y)
     else:
         raise Exception('Must provide valid dataset')
-    print('length of dataset = '+str(len(y)))
     return smiles_list, y
 
 def split_by_lengths(seq, num):

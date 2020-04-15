@@ -19,15 +19,17 @@ from helper import parse_dataset, transform_data, scaffold_split
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Adjust accordingly for your own file system
-FREESOLV_PATH = 'data/FreeSolv/FreeSolv.csv'
-CATS_PATH = 'data/CatS/CatS.csv'
-LIPO_PATH = 'data/lipo/lipo.csv'
-ESOL_PATH = 'data/esol/esol.csv'
-DLS_PATH = 'data/dls/dls.csv'
-BRADLEY_PATH = 'data/bradley/bradley.csv'
-MALARIA_PATH = 'data/Malaria/Malaria.csv'
+FREESOLV_PATH = '../data/FreeSolv/FreeSolv.csv'
+CATS_PATH = '../data/CatS/CatS.csv'
+LIPO_PATH = '../data/lipo/lipo.csv'
+ESOL_PATH = '../data/esol/esol.csv'
+DLS_PATH = '../data/DLS/DLS-100.csv'
+BRADLEY_PATH = '../data/bradley/bradley.csv'
+MALARIA_PATH = '../data/Malaria/Malaria.csv'
+CHEMBL5118_PATH = '../data/CHEMBL5118.csv'
+CHEMBL3927_PATH = '../data/CHEMBL3927.csv'
 
-PATHS = {'FreeSolv': FREESOLV_PATH, 'esol': ESOL_PATH, 'lipo': LIPO_PATH, 'dls': DLS_PATH, 'CatS':CATS_PATH, 'bradley':BRADLEY_PATH, 'Malaria':MALARIA_PATH}
+PATHS = {'FreeSolv': FREESOLV_PATH, 'esol': ESOL_PATH, 'lipo': LIPO_PATH, 'DLS': DLS_PATH, 'CatS':CATS_PATH, 'bradley':BRADLEY_PATH, 'Malaria':MALARIA_PATH, 'CHEMBL5118': CHEMBL5118_PATH, 'CHEMBL3927' : CHEMBL3927_PATH}
 
 TASK_NAME = 'FreeSolv'  # Change dataset. Options: ['ESOL', 'FreeSolv', 'QM9', 'CEP', 'CatS', 'Melt', 'Malaria']
 
@@ -86,8 +88,8 @@ def main(task, split, n_runs, n_fold, n_bits):
             X_test = tf.convert_to_tensor(X_test, dtype = tf.float64)        
     
             #for bits in bit_list:
-            #rem_mat = np.load('kernels/'+task+'_ecfp_'+str(bits)+'.npy')
-            rem_mat = np.load('/rds-d2/user/wjm41/hpc-work/kernels/ecfp/'+task+'_'+str(bits)+'.npy')
+            rem_mat = np.load('../kernels/'+task+'_ecfp_'+str(bits)+'.npy')
+            #rem_mat = np.load('/rds-d2/user/wjm41/hpc-work/kernels/ecfp/'+task+'_'+str(bits)+'.npy')
         
             rem_diag = tf.constant(np.diag(rem_mat),dtype=tf.float64)
             rem_mat = tf.constant(rem_mat,dtype=tf.float64)
@@ -145,9 +147,9 @@ def main(task, split, n_runs, n_fold, n_bits):
             rmse_list.append(rmse)
             logP_list.append(logP)
         
-            np.savetxt('results/ecfp_'+str(bits)+'_'+task+'_split_'+split+'_run_'+str(j)+'_ypred.txt', y_pred)
-            np.savetxt('results/ecfp_'+str(bits)+'_'+task+'_split_'+split+'_run_'+str(j)+'_ytest.txt', y_test)
-            np.savetxt('results/ecfp_'+str(bits)+'_'+task+'_split_'+split+'_run_'+str(j)+'_ystd.txt', np.sqrt(y_var))
+            np.savetxt('../results/ecfp_'+str(bits)+'_'+task+'_split_'+split+'_run_'+str(j)+'_ypred.txt', y_pred)
+            np.savetxt('../results/ecfp_'+str(bits)+'_'+task+'_split_'+split+'_run_'+str(j)+'_ytest.txt', y_test)
+            np.savetxt('../results/ecfp_'+str(bits)+'_'+task+'_split_'+split+'_run_'+str(j)+'_ystd.txt', np.sqrt(y_var))
             j+=1
 
        r2_list = np.array(r2_list)
