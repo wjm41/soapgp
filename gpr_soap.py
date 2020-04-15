@@ -31,7 +31,6 @@ CHEMBL5118_PATH = 'data/CHEMBL5118.csv'
 CHEMBL3927_PATH = 'data/CHEMBL3927.csv'
 
 PATHS = {'FreeSolv': FREESOLV_PATH, 'esol': ESOL_PATH, 'lipo': LIPO_PATH, 'DLS': DLS_PATH, 'CatS':CATS_PATH, 'bradley':BRADLEY_PATH, 'Malaria':MALARIA_PATH, 'CHEMBL5118': CHEMBL5118_PATH, 'CHEMBL3927' : CHEMBL3927_PATH, 'CHEMBL5118_typical': CHEMBL5118_PATH, 'CHEMBL3927_typical' : CHEMBL3927_PATH}
-
 TASK_NAME = 'FreeSolv'  # Change dataset. Options: ['ESOL', 'FreeSolv', 'QM9', 'CEP', 'CatS', 'Melt', 'Malaria']
 
 
@@ -46,11 +45,10 @@ def main(task, split, n_runs, n_fold):
     if task in PATHS:
         smiles_list, y  = parse_dataset(task, PATHS[task]) #NEED TO FIX MALARIA
         X = np.arange(len(smiles_list)).reshape(-1,1)
-        
     else:
         raise Exception('Must provide dataset')
     
-    rem_mat = np.load('kernels/'+task+'_typical_soap.npy')
+    rem_mat = np.load('kernels/'+task+'_soap.npy')
     #rem_mat = np.load('/rds-d2/user/wjm41/hpc-work/kernels/'+data_name+'_'+method_name+'_kernel_rematch.npy')
 
     max_rem = rem_mat.max()
@@ -104,8 +102,6 @@ def main(task, split, n_runs, n_fold):
             split_list = [train_ind, test_ind]
         for train_ind, test_ind in split_list:
             X_train, X_test = X[train_ind], X[test_ind]
-            y_train, y_test = y[train_ind], y[test_ind]
- 
             smiles_df = pd.DataFrame(smiles_list, columns=['smiles'])
             train_smiles = smiles_df.iloc[train_ind]['smiles'].to_list()
             test_smiles = smiles_df.iloc[test_ind]['smiles'].to_list()
@@ -121,6 +117,7 @@ def main(task, split, n_runs, n_fold):
             test_df.to_csv('/home/wjm41/ml_physics/chemprop/data/'+task+'_run_'+str(j)+'_test.csv', index=False)
 
             #y_train, y_test, y_scaler = transform_data(y_train, y_test)
+            y_train, y_test, y_scaler = transform_data(y_train, y_test)
                 
             X_train = tf.convert_to_tensor(X_train, dtype = tf.float64)
             X_test = tf.convert_to_tensor(X_test, dtype = tf.float64)        
