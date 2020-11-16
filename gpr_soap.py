@@ -14,7 +14,7 @@ import tensorflow as tf
 from gpflow.utilities import print_summary, positive
 from rdkit.Chem import MolFromSmiles, AllChem
 from sklearn.model_selection import train_test_split, KFold
-from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score
+from sklearn.metrics import r2_score, mean_squared_error
 
 from helper import scaffold_split
 from parse_data import parse_dataset
@@ -78,6 +78,7 @@ def main(args):
     if args.task!='IC50':
         rem_mat = np.load(args.kernel_path+args.task+'_soap.npy')
     else:
+        print('Subtask: {}'.format(args.subtask))
         rem_mat = np.load(args.kernel_path+args.subtask+'_soap.npy')
 
     r2_list = []
@@ -88,7 +89,7 @@ def main(args):
     j=0 
     for i in range(args.n_runs):
         if split=='random':
-           kf = KFold(n_splits=n_fold, random_state=i, shuffle=True)
+           kf = KFold(n_splits=args.n_folds, random_state=i, shuffle=True)
            split_list = kf.split(X)
         elif split=='scaffold':
             train_ind, test_ind = scaffold_split(smiles_list, seed=i)
@@ -134,9 +135,9 @@ if __name__ == "__main__":
                          help='Path to directory containing saved SOAP kernels')
      parser.add_argument('-split', type=str, default='random',
                          help='Train/Test splitting method. Possible choices: random/scaffold')
-     parser.add_argument('-nruns', type=int, default=3, 
+     parser.add_argument('-n_runs', type=int, default=3,
                          help='number of runs for train/test split.')
-     parser.add_argument('-nfold', type=int, default=5, 
+     parser.add_argument('-n_folds', type=int, default=5,
                          help='number of folds in K-fold cross-validation. Only for random splitting')
      args = parser.parse_args()
     
