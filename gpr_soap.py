@@ -1,5 +1,6 @@
 """
-Script for training a GP on either fragment or fingerprint representations of molecules.
+Script for training a SOAP GP from a precalculated SOAP kernel by using data indices as inputs.
+More efficient for benchmarking purposes (instead of recalculating the same kernel over and over again).
 """
 
 import os
@@ -18,43 +19,47 @@ from sklearn.metrics import r2_score, mean_squared_error, roc_auc_score
 from helper import scaffold_split
 from parse_data import parse_dataset
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-class Matern32_rem(gpflow.kernels.Kernel):
-        def __init__(self, rem_mat):
-                super().__init__(active_dims=[0])
-                self.var = gpflow.Parameter(1.0, transform=positive())
-                self.mag = gpflow.Parameter(1.0, transform=positive())
-                self.rem_mat = tf.constant(rem_mat,dtype=tf.float64)
-                self.max_rem = rem_mat.max()
+class SOAP_kern(gpflow.kernels.Kernel):
+    """
+    A kernel class that loads the calculated SOAP kernel by indexing rows and columns from the input X.
+    """
 
-        def K(self, X, X2=None, presliced=None):
-                if X2 is None:
-                        X2=X
-                A = tf.cast(X,tf.int32)
-                A = tf.reshape(A,[-1])
-                A2 = tf.reshape(X2,[-1])
-                A2 = tf.cast(A2,tf.int32)
-                K_mat = tf.gather(self.rem_mat, A, axis=0)
-                K_mat = tf.gather(K_mat, A2, axis=1)
-                z = tf.math.sqrt(6*(self.max_rem-K_mat))*self.var
-                K_final = self.mag*(1+z)*tf.math.exp(-z)
-                return K_final
+    def __init__(self, rem_mat):
+            super().__init__(active_dims=[0])
+            self.var = gpflow.Parameter(1.0, transform=positive())
+            self.mag = gpflow.Parameter(1.0, transform=positive())
+            self.rem_mat = tf.constant(rem_mat,dtype=tf.float64)
+            self.max_rem = rem_mat.max()
 
-        def K_diag(self, X, presliced=None):
-                return self.mag*tf.reshape(tf.ones_like(X),-1)
+    def K(self, X, X2=None, presliced=None):
+            if X2 is None:
+                    X2=X
+            A = tf.cast(X,tf.int32)
+            A = tf.reshape(A,[-1])
+            A2 = tf.reshape(X2,[-1])
+            A2 = tf.cast(A2,tf.int32)
+            K_mat = tf.gather(self.rem_mat, A, axis=0)
+            K_mat = tf.gather(K_mat, A2, axis=1)
+
+            z = tf.math.sqrt(6*(self.max_rem-K_mat))*self.var # Matern v=3/2 kernel
+            K_final = self.mag*(1+z)*tf.math.exp(-z)
+            return K_final
+
+    def K_diag(self, X, presliced=None):
+            return self.mag*tf.reshape(tf.ones_like(X),-1) # diagonal of ones * self.mag
 
 def train_soapgp(X_train, y_train, rem_mat, log=False):
-
-    k = Matern32_rem(rem_mat)+gpflow.kernels.White(0.1)
+    """
+    Initialises the kernel and GP model, then calls on the scipy L-BFGS optimizer to minimise the training loss.
+    Call with log=True to print the final values of the kernel parameters for save/load purposes.
+    """
+    k = SOAP_kern(rem_mat)+gpflow.kernels.White(0.1)
     m = gpflow.models.GPR( data=(X_train, y_train), kernel=k)
     
     opt = gpflow.optimizers.Scipy()
-
-    def objective_func():
-        return -m.log_marginal_likelihood()
     
-    opt_logs = opt.minimize(objective_func, m.trainable_variables, options=dict(maxiter=10000))
+    opt.minimize(m.training_loss, m.trainable_variables, options=dict(maxiter=10000))
     
     if log:
         print_summary(m)
@@ -66,18 +71,18 @@ def main(args):
 
     print('\nTraining SOAP-GP on '+task+' dataset')
     print('\nGenerating features...')
-    
-    if args.task=='IC50':
-       PATHS[args.task] = PATHS[args.task]+args.suffix+'.can'
-       print('Subtask: '+args.suffix)
-    smiles_list, y  = parse_dataset(args.task)
-    X = np.arange(len(smiles_list)).reshape(-1,1)
-    
-    rem_mat = np.load('kernels/'+task+'_soap.npy') # adjust this accordingly TODO 
+
+    smiles_list, y  = parse_dataset(args.task, subtask=args.subtask)
+    X = np.arange(len(smiles_list)).reshape(-1,1) # array of data indices
+
+    if args.task!='IC50':
+        rem_mat = np.load(args.kernel_path+args.task+'_soap.npy')
+    else:
+        rem_mat = np.load(args.kernel_path+args.subtask+'_soap.npy')
 
     r2_list = []
     rmse_list = []
-    logP_list = []
+
     print('\nBeginning training loop...')
   
     j=0 
@@ -122,7 +127,11 @@ if __name__ == "__main__":
 
      parser = argparse.ArgumentParser()
      parser.add_argument('-task', type=str, default=TASK_NAME, 
-                         help='Dataset on which to train the GP')
+                         help='Dataset on which to train SOAP-GP')
+     parser.add_argument('-subtask', type=str, default='A2a',
+                         help='For IC50, data subset to train SOAP-GP')
+     parser.add_argument('-kernel_path', type=str, default='kernels/',
+                         help='Path to directory containing saved SOAP kernels')
      parser.add_argument('-split', type=str, default='random',
                          help='Train/Test splitting method. Possible choices: random/scaffold')
      parser.add_argument('-nruns', type=int, default=3, 

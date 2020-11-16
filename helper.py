@@ -7,24 +7,40 @@ from rdkit import Chem
 from rdkit.Chem import MolFromSmiles
 from rdkit.Chem.Scaffolds import MurckoScaffold
 
-def split_by_lengths(seq, num):
+def split_by_lengths(seq, num_list):
+    """
+    Splits the input sequence seq into variably-sized chunks determined by the entries in num_list.
+
+    :param seq: a list/array to-be-split
+    :param num_list: a list/array of positive integers indicating the chunk-size to split seq
+    :return: a list which consists of seq sliced according to num_list
+    """
     out_list = []
     i=0
-    for j in num:
+    for j in num_list:
         out_list.append(seq[i:i+j])
         i+=j
     return out_list
 
 def return_borders(index, dat_len, mpi_size):
+    """
+    A utility function for returning the data indices from partitioning data between MPI processes.
+
+    :param index: index of the MPI process
+    :param dat_len: length of the data array to-be-split
+    :param mpi_size: number of MPI processes in total
+    :return: the lower and upper indices indicating the data range that should allocated to a particular MPI process
+    """
     mpi_borders = np.linspace(0, dat_len, mpi_size + 1).astype('int')
 
     border_low = mpi_borders[index]
     border_high = mpi_borders[index+1]
     return border_low, border_high
 
-def generate_scaffold(mol: Union[str, Chem.Mol], include_chirality: bool = False) -> str:
+def generate_scaffold(mol, include_chirality):
     """
     Compute the Bemis-Murcko scaffold for a SMILES string.
+    Implementation copied from https://github.com/chemprop/chemprop.
 
     :param mol: A smiles string or an RDKit molecule.
     :param include_chirality: Whether to include chirality.
@@ -35,10 +51,10 @@ def generate_scaffold(mol: Union[str, Chem.Mol], include_chirality: bool = False
 
     return scaffold
 
-def scaffold_to_smiles(mols: Union[List[str], List[Chem.Mol]],
-                       use_indices: bool = False) -> Dict[str, Union[Set[str], Set[int]]]:
+def scaffold_to_smiles(mols, use_indices):
     """
     Computes scaffold for each smiles string and returns a mapping from scaffolds to sets of smiles.
+    Implementation copied from https://github.com/chemprop/chemprop.
 
     :param mols: A list of smiles strings or RDKit molecules.
     :param use_indices: Whether to map to the smiles' index in all_smiles rather than mapping
@@ -55,12 +71,13 @@ def scaffold_to_smiles(mols: Union[List[str], List[Chem.Mol]],
 
     return scaffolds
 
-def scaffold_split(data: List[str],
-                   sizes: Tuple[float, float] = (0.8, 0.2),
-                   balanced: bool = True,
-                   seed: int = 0):
+def scaffold_split(data,
+                   sizes = (0.8, 0.2),
+                   balanced = True,
+                   seed = 0):
     """
     Split a dataset by scaffold so that no molecules sharing a scaffold are in the same split.
+    Implementation copied from https://github.com/chemprop/chemprop.
 
     :param data: List of smiles strings
     :param sizes: A length-2 tuple with the proportions of data in the
